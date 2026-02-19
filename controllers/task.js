@@ -86,20 +86,71 @@ const createTask = async (req, res) => {
 };
 
 const updateTask = async (req, res) => {
-    const { title, description, status, priority, dueDate, taskId } = req.body;
-    if(taskId) {
-        const task = await Subtask.findByIdAndUpdate(req.params.id, { title, description, status, priority, dueDate, taskId }, { new: true });
-        if(!task)
-            return res.status(404).json({ error: 'Subtask not found' });
-        
-        return res.status(200).json(task);
-    }
-
-    const task = await Task.findByIdAndUpdate(req.params.id, { title, description, status, priority, dueDate }, { new: true });
-    if(!task)
-        return res.status(404).json({ error: 'Task not found' });
+    const session = await mongoose.startSession();
+    session.startTransaction();
     
-    res.status(200).json(task);
+    try {
+        const { title, description, status, priority, dueDate, taskId } = req.body;
+        let task;
+        
+        if(taskId) {
+            task = await Subtask.findByIdAndUpdate(
+                req.params.id, 
+                { title, description, status, priority, dueDate, taskId }, 
+                { new: true, session }
+            );
+            if(!task)
+                return res.status(404).json({ error: 'Subtask not found' });
+        } else {
+            task = await Task.findByIdAndUpdate(
+                req.params.id, 
+                { title, description, status, priority, dueDate }, 
+                { new: true, session }
+            );
+            if(!task)
+                return res.status(404).json({ error: 'Task not found' });
+        }
+
+        await session.commitTransaction();
+        res.status(200).json(task);
+    } catch (error) {
+        await session.abortTransaction();
+        res.status(500).json({ error: error.message });
+    } finally {
+        session.endSession();
+    }
+};
+
+const deleteTask = async (req, res) => {
+    // first check if the task is a subtask or not,
+    // if the task is subtask then delete that subtask, otherwise delete the main task and related subtasks
+    if(req.body.subTask === true) {
+        const task = await Subtask.findByIdAndUpdate(
+            req.params.id,
+            { deleted: true },
+            { new: true }
+        );
+        if (!task) {
+            return res.status(404).json({ error: 'Subtask not found' });
+        }
+    } else {
+        const task = await Task.findByIdAndUpdate(
+            req.params.id,
+            { deleted: true },
+            { new: true }
+        );
+        
+        if (!task) {
+            return res.status(404).json({ error: 'Task not found' });
+        }
+
+        // Also mark all subtasks as deleted, as per task flow, it is stated that if main task deleted then all subtask should be deleted
+        await Subtask.updateMany(
+            { taskId: req.params.id },
+            { deleted: true }
+        );
+        res.status(200).json({ message: 'Task marked as deleted successfully', task });
+    }
 };
 
 module.exports = { getTasks, createTask, updateTask };

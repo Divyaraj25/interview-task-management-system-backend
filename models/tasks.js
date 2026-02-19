@@ -27,6 +27,10 @@ const taskSchema = new Schema({
     default: Date.now,
     required: true,
   },
+  deleted: {
+    type: Boolean,
+    default: false,
+  },
   createdById: {
     type: Schema.Types.ObjectId,
     required: true,

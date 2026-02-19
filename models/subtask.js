@@ -15,6 +15,10 @@ const subtaskSchema = new Schema({
     type: String, 
     required: true 
   },
+  deleted: { 
+    type: Boolean, 
+    default: false,
+  },
   status: { 
     type: String, 
     enum: ['assigned', 'inprogress', 'done'],
