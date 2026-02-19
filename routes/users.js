@@ -4,7 +4,11 @@ const User = require('../models/users');
 const { login, register } = require('../controllers/auth');
 
 router.get('/', function(req, res, next) {
-  res.send('respond with a resource');
+  res.status(200).json({
+    success: true,
+    data: null,
+    message: 'respond with a resource'
+  });
 });
 
 router.post('/login', login);

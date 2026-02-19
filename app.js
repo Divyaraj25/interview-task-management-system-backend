@@ -9,6 +9,7 @@ const usersRouter = require('./routes/users');
 const tasksRouter = require('./routes/task');
 
 const connectDB = require('./db/connect');
+const { authMiddleware } = require('./middleware/auth.middleware');
 
 const app = express();
 
@@ -25,7 +26,7 @@ connectDB();
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/tasks', tasksRouter);
+app.use('/tasks', authMiddleware, tasksRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

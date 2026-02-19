@@ -41,17 +41,25 @@ const getTasks = async (req, res) => {
         const totalTasks = await Task.countDocuments();
 
         res.status(200).json({
-            tasks: tasksWithSubtasks,
-            pagination: {
-                currentPage: page,
-                totalPages: Math.ceil(totalTasks / limit),
-                totalTasks: totalTasks,
-                hasNextPage: page < Math.ceil(totalTasks / limit),
-                hasPrevPage: page > 1
-            }
+            success: true,
+            data: {
+                tasks: tasksWithSubtasks,
+                pagination: {
+                    currentPage: page,
+                    totalPages: Math.ceil(totalTasks / limit),
+                    totalTasks: totalTasks,
+                    hasNextPage: page < Math.ceil(totalTasks / limit),
+                    hasPrevPage: page > 1
+                }
+            },
+            message: 'Tasks retrieved successfully'
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            data: null, 
+            message: error.message 
+        });
     }
 };
 
@@ -60,29 +68,57 @@ const createTask = async (req, res) => {
     let dueDate = new Date(req.body.dueDate);
 
     if(!title || !description || !createdById || !dueDate)
-        return res.status(400).json({ error: 'All fields are required' });
+        return res.status(400).json({ 
+            success: false, 
+            data: null, 
+            message: 'All fields are required' 
+        });
 
     if (isNaN(dueDate.getTime())) {
-        return res.status(400).json({ error: 'Due date must be a valid date' });
+        return res.status(400).json({ 
+            success: false, 
+            data: null, 
+            message: 'Due date must be a valid date' 
+        });
     }
 
     if(taskId){
         const parentTask = await Task.findById(taskId);
         if(!parentTask)
-            return res.status(404).json({ error: 'Parent task not found' });
+            return res.status(404).json({ 
+                success: false, 
+                data: null, 
+                message: 'Parent task not found' 
+            });
 
         const task = await Subtask.create({taskId, title, description, status, priority, createdById, dueDate });
         if(!task)
-            return res.status(400).json({ error: 'Failed to create subtask' });
+            return res.status(400).json({ 
+                success: false, 
+                data: null, 
+                message: 'Failed to create subtask' 
+            });
 
-        return res.status(201).json(task);
+        return res.status(201).json({
+            success: true,
+            data: task,
+            message: 'Subtask created successfully'
+        });
     }
 
     const task = await Task.create({ title, description, status, priority, createdById, dueDate });
     if(!task)
-        return res.status(400).json({ error: 'Failed to create task' });
+        return res.status(400).json({ 
+            success: false, 
+            data: null, 
+            message: 'Failed to create task' 
+        });
 
-    res.status(201).json(task);
+    res.status(201).json({
+        success: true,
+        data: task,
+        message: 'Task created successfully'
+    });
 };
 
 const updateTask = async (req, res) => {
@@ -100,7 +136,11 @@ const updateTask = async (req, res) => {
                 { new: true, session }
             );
             if(!task)
-                return res.status(404).json({ error: 'Subtask not found' });
+                return res.status(404).json({ 
+                    success: false, 
+                    data: null, 
+                    message: 'Subtask not found' 
+                });
         } else {
             task = await Task.findByIdAndUpdate(
                 req.params.id, 
@@ -108,14 +148,26 @@ const updateTask = async (req, res) => {
                 { new: true, session }
             );
             if(!task)
-                return res.status(404).json({ error: 'Task not found' });
+                return res.status(404).json({ 
+                    success: false, 
+                    data: null, 
+                    message: 'Task not found' 
+                });
         }
 
         await session.commitTransaction();
-        res.status(200).json(task);
+        res.status(200).json({
+            success: true,
+            data: task,
+            message: 'Task updated successfully'
+        });
     } catch (error) {
         await session.abortTransaction();
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            data: null, 
+            message: error.message 
+        });
     } finally {
         session.endSession();
     }
@@ -131,7 +183,11 @@ const deleteTask = async (req, res) => {
             { new: true }
         );
         if (!task) {
-            return res.status(404).json({ error: 'Subtask not found' });
+            return res.status(404).json({ 
+                success: false, 
+                data: null, 
+                message: 'Subtask not found' 
+            });
         }
     } else {
         const task = await Task.findByIdAndUpdate(
@@ -141,7 +197,11 @@ const deleteTask = async (req, res) => {
         );
         
         if (!task) {
-            return res.status(404).json({ error: 'Task not found' });
+            return res.status(404).json({ 
+                success: false, 
+                data: null, 
+                message: 'Task not found' 
+            });
         }
 
         // Also mark all subtasks as deleted, as per task flow, it is stated that if main task deleted then all subtask should be deleted
@@ -149,9 +209,13 @@ const deleteTask = async (req, res) => {
             { taskId: req.params.id },
             { deleted: true }
         );
-        res.status(200).json({ message: 'Task marked as deleted successfully', task });
+        res.status(200).json({ 
+            success: true, 
+            data: { task }, 
+            message: 'Task marked as deleted successfully' 
+        });
     }
 };
 
-module.exports = { getTasks, createTask, updateTask };
+module.exports = { getTasks, createTask, updateTask, deleteTask };
 
